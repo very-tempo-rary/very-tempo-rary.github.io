@@ -99,7 +99,7 @@ function draw() {
   drawLegend();
 
   // ── Digital time ──────────────────────────────────
-  fill(160);
+  fill(180);
   noStroke();
   textAlign(CENTER, BOTTOM);
   textSize(16);
@@ -242,8 +242,8 @@ function drawLabels(cx, cy, currentHour) {
     let ly  = cy + LABEL_R * sin(ang);
 
     if (h === currentHour)    fill(255);
-    else if (h < currentHour) fill(100);
-    else                      fill(160);
+    else if (h < currentHour) fill(120);
+    else                      fill(180);
     noStroke();
 
     push();
@@ -279,11 +279,11 @@ function drawLegend() {
   }
 
   noFill();
-  stroke(160);
+  stroke(180);
   strokeWeight(1);
   line(x, y + bh + 16, x + bw, y + bh + 16);
 
-  fill(160);
+  fill(180);
   noStroke();
   triangle(
     x + bw,     y + bh + 16,
@@ -291,7 +291,7 @@ function drawLegend() {
     x + bw - 7, y + bh + 20
   );
 
-  fill(160);
+  fill(180);
   noStroke();
   textAlign(RIGHT, TOP);
   text('closer to midnight', x + bw, y + bh + 32);
