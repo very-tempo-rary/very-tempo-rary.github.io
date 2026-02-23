@@ -1,3 +1,11 @@
+// ── Test animation without waiting for midnight ─────
+/* function keyPressed() {
+  if (key === ' ') {
+    fallTriggerDay = -1;   // reset so it can fire again
+    initFall(width / 2, height / 2);
+  }
+} */
+
 const BG         = '#2b2b2b';
 const C_START    = [252, 54,  92 ];
 const C_END      = [255, 255, 255];
@@ -6,6 +14,12 @@ const PETAL_R    = 210;
 const PETAL_W    = 38;
 const LABEL_R    = 255;
 const NUM_HOURS  = 24;
+
+// ── Midnight fall state ───────────────────────────
+let fallingPetals    = [];
+let fallTriggered    = false;
+let fallTriggerDay   = -1;   // tracks which calendar day the fall was triggered
+let allLandedTime    = -1;   // millis() when the last petal landed
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -25,18 +39,30 @@ function draw() {
   let cx = width  / 2;
   let cy = height / 2;
 
+  // ── Flower color for the current moment ───────────
   let t  = (hr * 60 + min) / (24 * 60 - 1);
   let cr = lerp(C_START[0], C_END[0], t);
   let cg = lerp(C_START[1], C_END[1], t);
   let cb = lerp(C_START[2], C_END[2], t);
 
+  // ── Trigger midnight fall at 00:00:05 ─────────────
+  let today = now.getDate();
+  if (hr === 0 && min === 0 && sec >= 5 && fallTriggerDay !== today) {
+    fallTriggerDay = today;
+    initFall(cx, cy);
+  }
+
+  // ── Draw falling ghost petals (behind live flower) ─
+  drawFallingPetals();
+
+  // ── Hour labels ───────────────────────────────────
   drawLabels(cx, cy, hr);
 
+  // ── Live flower petals ────────────────────────────
   let growingHour     = (hr + 1) % NUM_HOURS;
   let currentPetalLen = (min / 60) * PETAL_R;
 
-  // Smooth 0->128->0 pulse once per second
-  let cycleMs = (sec % 2) * 1000 + ms;   // position within a 2-second cycle
+  let cycleMs = (sec % 2) * 1000 + ms;
   let pulse   = 64 * (1 - Math.cos(2 * Math.PI * cycleMs / 2000));
 
   for (let h = 0; h < NUM_HOURS; h++) {
@@ -54,6 +80,7 @@ function draw() {
     drawPetal(cx, cy, hoursToAngle(h), len, col);
   }
 
+  // ── Title ─────────────────────────────────────────
   fill(255);
   noStroke();
   textFont('Platypi');
@@ -64,8 +91,10 @@ function draw() {
   textStyle(NORMAL);
   textFont('Trispace');
 
+  // ── Legend ────────────────────────────────────────
   drawLegend();
 
+  // ── Digital time ──────────────────────────────────
   fill(160);
   noStroke();
   textAlign(CENTER, BOTTOM);
@@ -73,6 +102,115 @@ function draw() {
   text(nf(hr, 2) + ' : ' + nf(min, 2) + ' : ' + nf(sec, 2), cx, height - 36);
 }
 
+// ── Initialise the falling ghost petals ──────────────
+// Called once at 00:00:05. Captures all 24 full-length petals
+// in the end-of-day near-white colour, and gives each one
+// randomised physics so they fall independently.
+function initFall(cx, cy) {
+  fallingPetals = [];
+  allLandedTime = -1;
+
+  let tEnd = (23 * 60 + 59) / (24 * 60 - 1);
+  let er   = lerp(C_START[0], C_END[0], tEnd);
+  let eg   = lerp(C_START[1], C_END[1], tEnd);
+  let eb   = lerp(C_START[2], C_END[2], tEnd);
+
+  // Pre-assign landing X positions based on petal angle,
+  // then stack petals that land close to each other
+  let FLOOR     = height - 40;
+  let PETAL_H   = PETAL_R * 0.6;   // rough height of a landed petal
+  let slots     = {};               // tracks how many petals share each x-zone
+
+  for (let h = 0; h < NUM_HOURS; h++) {
+    let ang   = hoursToAngle(h);
+    // Land X follows the petal's natural horizontal direction
+    let landX = cx + cos(ang) * (width * 0.38) + random(-20, 20);
+    // Quantise into zones of ~60px to count pile-ups
+    let zone  = Math.round(landX / 60);
+    slots[zone] = (slots[zone] || 0) + 1;
+    // Each extra petal in the same zone lands higher
+    let landY = FLOOR - (slots[zone] - 1) * PETAL_H * 0.4;
+
+    fallingPetals.push({
+      ang, x: cx, y: cy,
+      vx: cos(ang) * random(2, 4) + random(-0.5, 0.5),
+      vy: random(1, 4),
+      rot: 0, vrot: random(-1.5, 1.5),
+      gravity: random(0.15, 0.35),
+      landed: false, alpha: 128,
+      r: er, g: eg, b: eb,
+      startDelay: random(0, 400),
+      startTime: millis(),
+      landY                         // ← each petal knows its own floor
+    });
+  }
+}
+
+// ── Advance physics and draw all falling petals ───────
+function drawFallingPetals() {
+  if (fallingPetals.length === 0) return;
+
+  let now          = millis();
+  let allLanded    = true;
+  let FLOOR        = height - 40;   // y-coordinate of the "ground"
+
+  for (let p of fallingPetals) {
+    // Respect per-petal start delay
+    if (now - p.startTime < p.startDelay) {
+      allLanded = false;
+      // Draw at original position while waiting
+      let col = color(p.r, p.g, p.b, p.alpha);
+      drawPetal(p.x, p.y, p.ang, PETAL_R, col);
+      continue;
+    }
+
+    if (!p.landed) {
+      // Apply gravity
+      p.vy  += p.gravity;
+      p.x   += p.vx;
+      p.y   += p.vy;
+      p.rot += p.vrot;
+
+      // Land when the petal base reaches the floor
+      // (the tip extends PETAL_R further, so base lands a bit above floor)
+      let floorForBase = FLOOR - PETAL_R * 0.3;
+      if (p.y >= p.landY) {
+        p.y = p.landY;
+        p.landed = true;
+        p.vx     = 0;
+        p.vy     = 0;
+        p.vrot   = 0;
+      }
+      allLanded = false;
+    }
+
+    // Dissolve phase: 2 s rest, then 5 s fade
+    if (allLandedTime > 0) {
+      let elapsed = now - allLandedTime;
+      if (elapsed > 2000) {
+        // Fade over 5000 ms
+        let fadeFrac = constrain((elapsed - 2000) / 5000, 0, 1);
+        p.alpha = lerp(128, 0, fadeFrac);
+      }
+    }
+
+    if (p.alpha <= 0) continue;
+
+    let col = color(p.r, p.g, p.b, p.alpha);
+    drawPetal(p.x, p.y, p.ang + p.rot, PETAL_R, col);
+  }
+
+  // Record when the last petal landed
+  if (allLanded && allLandedTime < 0) {
+    allLandedTime = now;
+  }
+
+  // Clean up once fully dissolved
+  let allDone = fallingPetals.every(p => p.alpha <= 0 && p.landed);
+  if (allDone) fallingPetals = [];
+}
+
+// ── Helpers ──────────────────────────────────────────
 function hoursToAngle(h) {
   return -90 + h * (360 / NUM_HOURS);
 }
@@ -103,15 +241,14 @@ function drawLabels(cx, cy, currentHour) {
     let lx  = cx + LABEL_R * cos(ang);
     let ly  = cy + LABEL_R * sin(ang);
 
-    if (h === currentHour)      fill(220);
-    else if (h < currentHour)   fill(100);
-    else                        fill(130);
+    if (h === currentHour)    fill(220);
+    else if (h < currentHour) fill(100);
+    else                      fill(130);
     noStroke();
 
     push();
     translate(lx, ly);
     rotate(ang + 90);
-    // Flip labels in the left half so they read outward, not upside-down
     if (ang > 90 && ang < 270) scale(-1, -1);
     text(nf(h, 2), 0, 0);
     pop();
