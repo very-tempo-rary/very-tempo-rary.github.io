@@ -27,6 +27,10 @@ function setup() {
   textFont('Trispace');
 }
 
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
 function draw() {
   background(BG);
 
@@ -110,38 +114,33 @@ function initFall(cx, cy) {
   fallingPetals = [];
   allLandedTime = -1;
 
+  // End-of-day colour: t ≈ 1  (23:59)
   let tEnd = (23 * 60 + 59) / (24 * 60 - 1);
   let er   = lerp(C_START[0], C_END[0], tEnd);
   let eg   = lerp(C_START[1], C_END[1], tEnd);
   let eb   = lerp(C_START[2], C_END[2], tEnd);
 
-  // Pre-assign landing X positions based on petal angle,
-  // then stack petals that land close to each other
-  let FLOOR     = height - 40;
-  let PETAL_H   = PETAL_R * 0.6;   // rough height of a landed petal
-  let slots     = {};               // tracks how many petals share each x-zone
-
   for (let h = 0; h < NUM_HOURS; h++) {
-    let ang   = hoursToAngle(h);
-    // Land X follows the petal's natural horizontal direction
-    let landX = cx + cos(ang) * (width * 0.38) + random(-20, 20);
-    // Quantise into zones of ~60px to count pile-ups
-    let zone  = Math.round(landX / 60);
-    slots[zone] = (slots[zone] || 0) + 1;
-    // Each extra petal in the same zone lands higher
-    let landY = FLOOR - (slots[zone] - 1) * PETAL_H * 0.4;
-
     fallingPetals.push({
-      ang, x: cx, y: cy,
-      vx: cos(ang) * random(2, 4) + random(-0.5, 0.5),
-      vy: random(1, 4),
-      rot: 0, vrot: random(-1.5, 1.5),
-      gravity: random(0.15, 0.35),
-      landed: false, alpha: 128,
-      r: er, g: eg, b: eb,
-      startDelay: random(0, 400),
-      startTime: millis(),
-      landY                         // ← each petal knows its own floor
+      ang  : hoursToAngle(h),
+      // Current world position of the petal base (starts at flower centre)
+      x    : cx,
+      y    : cy,
+      // Velocity — mostly downward, slight horizontal scatter
+      vx   : random(-1.5, 1.5),
+      vy   : random(1, 4),
+      // Extra rotation accumulated during fall (degrees)
+      rot  : 0,
+      vrot : random(-1.5, 1.5),
+      // Physics
+      gravity : random(0.15, 0.35),
+      // State
+      landed   : false,
+      alpha    : 128,
+      r : er, g : eg, b : eb,
+      // Small random delay before each petal starts moving (ms)
+      startDelay : random(0, 400),
+      startTime  : millis()
     });
   }
 }
@@ -174,8 +173,8 @@ function drawFallingPetals() {
       // Land when the petal base reaches the floor
       // (the tip extends PETAL_R further, so base lands a bit above floor)
       let floorForBase = FLOOR - PETAL_R * 0.3;
-      if (p.y >= p.landY) {
-        p.y = p.landY;
+      if (p.y >= floorForBase) {
+        p.y      = floorForBase;
         p.landed = true;
         p.vx     = 0;
         p.vy     = 0;
@@ -248,8 +247,13 @@ function drawLabels(cx, cy, currentHour) {
 
     push();
     translate(lx, ly);
-    rotate(ang + 90);
-    if (ang > 90 && ang < 270) scale(-1, -1);
+    // Top labels (18→0→6, ang ≤ 0 or ang ≥ 180): tops point away from center
+    // Bottom labels (7→17, 0 < ang < 180): tops point toward center (petals)
+    if (ang > 0 && ang < 180) {
+      rotate(ang - 90);
+    } else {
+      rotate(ang + 90);
+    }
     text(nf(h, 2), 0, 0);
     pop();
   }
