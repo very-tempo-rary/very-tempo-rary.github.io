@@ -103,6 +103,7 @@ function draw() {
   noStroke();
   textAlign(CENTER, BOTTOM);
   textSize(16);
+  textStyle(NORMAL);
   text(nf(hr, 2) + ' : ' + nf(min, 2) + ' : ' + nf(sec, 2), cx, height - 36);
 }
 
@@ -240,9 +241,9 @@ function drawLabels(cx, cy, currentHour) {
     let lx  = cx + LABEL_R * cos(ang);
     let ly  = cy + LABEL_R * sin(ang);
 
-    if (h === currentHour)    fill(220);
+    if (h === currentHour)    fill(255);
     else if (h < currentHour) fill(100);
-    else                      fill(130);
+    else                      fill(160);
     noStroke();
 
     push();
