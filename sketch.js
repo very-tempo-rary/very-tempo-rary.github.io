@@ -69,6 +69,7 @@ function draw() {
   let cycleMs = (sec % 2) * 1000 + ms;
   let pulse   = 64 * (1 - Math.cos(2 * Math.PI * cycleMs / 2000));
 
+  // Draw all completed petals (h=0..hr full, h=growingHour growing)
   for (let h = 0; h < NUM_HOURS; h++) {
     let len, col;
     if (h <= hr) {
@@ -82,6 +83,14 @@ function draw() {
     }
     if (len < 1) continue;
     drawPetal(cx, cy, hoursToAngle(h), len, col);
+  }
+
+  // During hr=23, petal 0 is already drawn full above (0 <= 23).
+  // Draw it again on top with the pulse so it visibly grows.
+  if (hr === 23) {
+    if (currentPetalLen >= 1) {
+      drawPetal(cx, cy, hoursToAngle(0), currentPetalLen, color(cr, cg, cb, pulse));
+    }
   }
 
   // ── Title ─────────────────────────────────────────
@@ -99,11 +108,10 @@ function draw() {
   drawLegend();
 
   // ── Digital time ──────────────────────────────────
-  fill(180);
+  fill(160);
   noStroke();
   textAlign(CENTER, BOTTOM);
   textSize(16);
-  textStyle(NORMAL);
   text(nf(hr, 2) + ' : ' + nf(min, 2) + ' : ' + nf(sec, 2), cx, height - 36);
 }
 
@@ -241,9 +249,9 @@ function drawLabels(cx, cy, currentHour) {
     let lx  = cx + LABEL_R * cos(ang);
     let ly  = cy + LABEL_R * sin(ang);
 
-    if (h === currentHour)    fill(255);
-    else if (h < currentHour) fill(120);
-    else                      fill(180);
+    if (h === currentHour)    fill(220);
+    else if (h < currentHour) fill(100);
+    else                      fill(130);
     noStroke();
 
     push();
@@ -279,11 +287,11 @@ function drawLegend() {
   }
 
   noFill();
-  stroke(180);
+  stroke(160);
   strokeWeight(1);
   line(x, y + bh + 16, x + bw, y + bh + 16);
 
-  fill(180);
+  fill(160);
   noStroke();
   triangle(
     x + bw,     y + bh + 16,
@@ -291,7 +299,7 @@ function drawLegend() {
     x + bw - 7, y + bh + 20
   );
 
-  fill(180);
+  fill(160);
   noStroke();
   textAlign(RIGHT, TOP);
   text('closer to midnight', x + bw, y + bh + 32);
