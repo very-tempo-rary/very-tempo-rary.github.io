@@ -244,8 +244,8 @@ function drawLabels(cx, cy, currentHour) {
     let lx  = cx + LABEL_R * cos(ang);
     let ly  = cy + LABEL_R * sin(ang);
 
-    if (h === currentHour)    fill(220);
-    else if (h < currentHour) fill(100);
+    if (h === currentHour)    fill(255);
+    else if (h < currentHour && h  !== 0) fill(100);
     else                      fill(130);
     noStroke();
 
