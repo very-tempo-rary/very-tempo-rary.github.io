@@ -69,28 +69,23 @@ function draw() {
   let cycleMs = (sec % 2) * 1000 + ms;
   let pulse   = 64 * (1 - Math.cos(2 * Math.PI * cycleMs / 2000));
 
-  // Draw all completed petals (h=0..hr full, h=growingHour growing)
+  // h=0 (midnight) stays empty all day except during hr=23 when it grows.
+  // h=1..hr are full, growingHour pulses.
   for (let h = 0; h < NUM_HOURS; h++) {
     let len, col;
-    if (h <= hr) {
-      len = PETAL_R;
-      col = color(cr, cg, cb, 128);
-    } else if (h === growingHour) {
+    if (h === growingHour && !(h === 0 && hr !== 23)) {
+      // Growing petal — h=0 only allowed when hr=23
       len = currentPetalLen;
       col = color(cr, cg, cb, pulse);
+    } else if (h >= 1 && h <= hr) {
+      // Past + current hours (never h=0)
+      len = PETAL_R;
+      col = color(cr, cg, cb, 128);
     } else {
       continue;
     }
     if (len < 1) continue;
     drawPetal(cx, cy, hoursToAngle(h), len, col);
-  }
-
-  // During hr=23, petal 0 is already drawn full above (0 <= 23).
-  // Draw it again on top with the pulse so it visibly grows.
-  if (hr === 23) {
-    if (currentPetalLen >= 1) {
-      drawPetal(cx, cy, hoursToAngle(0), currentPetalLen, color(cr, cg, cb, pulse));
-    }
   }
 
   // ── Title ─────────────────────────────────────────
